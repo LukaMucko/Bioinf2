@@ -22,7 +22,7 @@ def main():
     parser = argparse.ArgumentParser(description='Process genome sequences and generate k-mers.')
     parser.add_argument('-k', type=int, default=1, required=True, help='Length of k-mers')
     parser.add_argument('-r', '--reference', required=False, help='Path to reference genome FASTA file', default="ecoli/ref.fasta")
-    parser.add_argument('-o', '--output', required=False, help='Output folder name', default='samples/')
+    parser.add_argument('-o', '--output', required=False, help='Output folder name', default='reference')
     parser.add_argument('-n', '--num_genes', required=False, help="Number of genes to sample", default=1, type=int)
     args = parser.parse_args()
     return args
@@ -111,20 +111,20 @@ def save_to_fasta(sequence, output_folder, k, n, sequence_id=None):
     
     Args:
         sequence: The sequence to save
-        output_folder: Folder path to save the file
+        output_folder: Name of the folder inside samples/
         k: k-mer size used
         n: Sample number
         sequence_id: Optional sequence identifier
     """
-
     if sequence_id is None:
         sequence_id = f"sample_{k}_{n}_{len(sequence)}"
     
-    filename = f"k{k}_n{n}_{len(sequence)}.fasta"
-    output_path = os.path.join(output_folder, filename)
+    # Create folder structure: samples/output_folder/k/
+    full_path = os.path.join("samples", output_folder, str(k))
+    os.makedirs(full_path, exist_ok=True)
     
-    # Create output directory if it doesn't exist
-    os.makedirs(output_folder, exist_ok=True)
+    # Set output path to samples/output_folder/k/n.fasta
+    output_path = os.path.join(full_path, f"{n}.fasta")
     
     # Create and save SeqRecord
     record = SeqRecord(Seq(sequence),
@@ -156,6 +156,6 @@ if __name__ == "__main__":
     print(f"Data usage of transition matrix: {transition_matrix.nbytes / (1024 * 1024 * 1024):.2f} GB")
     del kmers
     
-    for i in range(args.num_genes):
+    for i in range(args.num_genes+1):
         sample = sample_sequence(transition_matrix, reverse_kmer_dict, starting_state, len(reference), final_state)
         save_to_fasta(sample, args.output, k, i)
