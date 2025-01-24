@@ -1,0 +1,10 @@
+#!/bin/bash
+ 
+#PBS -P testni_primjer
+#PBS -q login-cpu
+#PBS -l select=1:ncpus=1:mem=20GB
+#PBS -o /lustre/home/lmucko/bioinf2/JOBS/
+#PBS -e /lustre/home/lmucko/bioinf2/JOBS/
+
+cd bioinf2
+uv run python MarkovChain.py -k 5 -n 20
