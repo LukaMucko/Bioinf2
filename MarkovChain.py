@@ -4,13 +4,15 @@ import argparse
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 import os
+from multiprocessing import Pool
+from itertools import islice
 
 def load_genome(filepath):
     """
     Load a genome sequence from a FASTA file.
     """
-    for record in SeqIO.parse(filepath, "fasta"):
-        return str(record.seq)
+    sequences = [str(record.seq) for record in SeqIO.parse(filepath, "fasta")]
+    return "".join(sequences)
 
 def generate_kmers(sequence, k):
     """
@@ -24,6 +26,7 @@ def main():
     parser.add_argument('-r', '--reference', required=False, help='Path to reference genome FASTA file', default="ecoli/ref.fasta")
     parser.add_argument('-o', '--output', required=False, help='Output folder name', default='reference')
     parser.add_argument('-n', '--num_genes', required=False, help="Number of genes to sample", default=1, type=int)
+    parser.add_argument('-b', '--batch', type=int, default=1, help='Number of parallel processes')
     args = parser.parse_args()
     return args
 
@@ -48,7 +51,10 @@ def create_transition_matrix(kmers: list, n_kmers: int):
         prev = kmers[i]
         curr = kmers[i+1][-1]
         i_idx = kmer_dict[prev]
-        j_idx = base_encoder[curr]
+        try:
+            j_idx = base_encoder[curr]
+        except KeyError:
+            continue
         transition_matrix[i_idx, j_idx] += 1
 
     # Find final states
@@ -88,18 +94,21 @@ def sample_sequence(transition_matrix, reverse_kmer_dict, starting_state, sequen
     current_state = starting_state
     pos = k
 
-    transition_matrix = np.cumsum(transition_matrix, axis=1)
     while pos < sequence_length:
-        next_base_idx = np.searchsorted(transition_matrix[current_state], np.random.rand())
-        next_base = reverse_base_decoder[int(next_base_idx)]
-
+        r = np.random.rand()
+        next_base_idx = np.searchsorted(transition_matrix[current_state], r)
+        
+        try:
+            next_base = reverse_base_decoder[int(next_base_idx)]
+        except KeyError:
+            break
+        
         sequence[pos] = ord(next_base)
 
         current_state = kmer_dict[sequence[pos-k+1:pos+1].decode()]
 
-        if next_base_idx == final_state:
-            print("Reached final_state")
-            return sequence[:pos+1].decode()
+        if current_state == final_state:
+            break
 
         pos += 1
         
@@ -131,6 +140,24 @@ def save_to_fasta(sequence, output_folder, k, n, sequence_id=None):
                       id=sequence_id,
                       description=f"Generated sequence with k={k}")
     SeqIO.write(record, output_path, "fasta")
+    
+def batch_iterable(iterable, batch_size):
+    """
+    Yield successive batches of a given size from an iterable.
+    """
+    iterator = iter(iterable)
+    while True:
+        batch = list(islice(iterator, batch_size))
+        if not batch:
+            break
+        yield batch
+
+def process_sample(i):
+    """
+    Process a single sample by generating and saving a sequence.
+    """    
+    sample = sample_sequence(transition_matrix, reverse_kmer_dict, starting_state, len(reference), final_state)
+    save_to_fasta(sample, args.output, k, i)
 
 if __name__ == "__main__":
     args = main()
@@ -155,7 +182,8 @@ if __name__ == "__main__":
     print(f"Transition matrix shape: {transition_matrix.shape}")
     print(f"Data usage of transition matrix: {transition_matrix.nbytes / (1024 * 1024 * 1024):.2f} GB")
     del kmers
+    transition_matrix = np.cumsum(transition_matrix, axis=1)
     
-    for i in range(args.num_genes+1):
-        sample = sample_sequence(transition_matrix, reverse_kmer_dict, starting_state, len(reference), final_state)
-        save_to_fasta(sample, args.output, k, i)
+    for batch in batch_iterable(range(args.num_genes), args.batch):
+        with Pool(processes=args.batch) as pool:
+            pool.map(process_sample, batch)
