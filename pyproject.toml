@@ -6,10 +6,14 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "bio>=1.7.1",
+    "gdown>=5.2.0",
+    "googledriver>=0.1.7",
+    "jupyter-resource-usage>=1.1.0",
     "jupyter>=1.1.1",
     "markovify>=0.9.4",
     "numpy>=2.2.0",
     "pgmpy",
+    "plotly>=5.24.1",
 ]
 
 [tool.uv.sources]
