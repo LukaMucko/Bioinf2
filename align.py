@@ -54,7 +54,6 @@ for tech in ['ONT', 'PB']:
     if df:
         pd.DataFrame(df).to_csv(f'alignment_results/{tech.lower()}.csv', index=False)
 
-exit(0)
 ref = "ecoli/ref.fasta"
 samples_dir = Path("samples/reference/")
 df_ref = []
