@@ -13,3 +13,10 @@ wheels/
 
 .ipynb_checkpoints/
 ecoli_podaci*
+
+ecoli/
+JOBS/
+minimap2/
+sam_files/
+samples/
+temp/
