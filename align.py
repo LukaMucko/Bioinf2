@@ -1,42 +1,96 @@
-import os
+import pandas as pd
 from pathlib import Path
+from subprocess import run, PIPE
+import re
 
-# Reference genome path
-REF_GENOME = "ecoli/ref.fasta"
-# Input and output root directories
-INPUT_DIR = "samples/reference"
-OUTPUT_DIR = "alignment_results/reference"
+Path('alignment_results').mkdir(exist_ok=True)
 
-def main():
-    # Create output directory if it doesn't exist
-    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+for tech in ['ONT', 'PB']:
+    df = []
+    for concat in [True, False]:
+        ref = f"ecoli/ecoli_{tech}{'_concat' if concat else ''}.fasta"
+        samples_dir = Path(f"samples/{tech}/{'concat' if concat else 'non_concat'}")
+        
+        if not Path(ref).exists() or not samples_dir.exists():
+            continue  # Skip missing paths
+
+        # Set presets
+        if tech == 'ILL':
+            preset = '-ax sr' if not concat else '-ax asm5'
+        else:  # ONT or PB
+            preset = f'-ax map-{tech.lower()}' if not concat else '-ax asm5'
+
+        # Process samples with silent output
+        for fasta in samples_dir.glob('*/*.fasta'):
+            k = fasta.parent.name
+            output_dir = Path(f"sam_files/{tech}/{'concat' if concat else 'non_concat'}/{k}")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_file = output_dir / f"{fasta.stem}.sam"
+                            
+            command = f'./minimap2/minimap2 -t 128 {preset} {ref} {fasta} > {output_file} 2>/dev/null'
+            print(command)
+            if not output_file.exists():
+                result = run(
+                    command,
+                    shell=True, stdout=PIPE, text=True
+                )
+            else:
+                print(f"Skipping existing file {output_file}")
+                
+            grep_cmd = f"grep 'AS:i:' {output_file} | awk -F'AS:i:' '{{print $2}}' | awk '{{print $1}}'"
+            grep_result = run(grep_cmd, shell=True, stdout=PIPE, text=True)
+            scores = [int(x) for x in grep_result.stdout.splitlines() if x]
+            max_score = max(scores) if scores else None
+            print(f"Max score is: {max_score}")
+
+            df.append({
+                'k': int(k),
+                'score': max_score,
+                'concatenated': concat
+            })
+
     
-    # Find all .fasta files recursively
-    for fasta_path in Path(INPUT_DIR).rglob("*.fasta"):
-        # Get relative path from INPUT_DIR
-        rel_path = fasta_path.relative_to(INPUT_DIR)
-        # Construct output path with .sam extension
-        output_path = Path(OUTPUT_DIR) / rel_path.with_suffix('.sam')
-        
-        # Create output directory if needed
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        if output_path.exists():
-            print(f"Skipping: {fasta_path} -> {output_path}")
-            continue
-        
-        # Run minimap2
-        cmd = [
-            "./minimap2/minimap2",
-            "-ax asm5",
-            REF_GENOME,
-            str(fasta_path),
-            ">",
-            str(output_path)
-        ]
-        
-        print(f"Processing: {fasta_path} -> {output_path}")
-        os.system(" ".join(cmd) + " 2>/dev/null")
+    # Save results
+    if df:
+        pd.DataFrame(df).to_csv(f'alignment_results/{tech.lower()}.csv', index=False)
 
-if __name__ == "__main__":
-    main()
+exit(0)
+ref = "ecoli/ref.fasta"
+samples_dir = Path("samples/reference/")
+df_ref = []
+
+if Path(ref).exists() and samples_dir.exists():
+    # Use assembly-to-assembly preset for reference comparison
+    preset = '-ax asm5'  
+    
+    for fasta in samples_dir.glob("*/*.fasta"):
+        k = fasta.parent.name
+        output_dir = Path(f"sam_files/reference/{k}")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / f"{fasta.stem}.sam"
+        
+        # Run minimap2 command
+        command = f'./minimap2/minimap2 -t 128 {preset} {ref} {fasta} > {output_file} 2>/dev/null'
+        print(command)
+        
+        if not output_file.exists():
+            result = run(command, shell=True, stdout=PIPE, text=True)
+        
+        # Extract alignment scores
+        grep_cmd = f"grep 'AS:i:' {output_file} | awk -F'AS:i:' '{{print $2}}' | awk '{{print $1}}'"
+        grep_result = run(grep_cmd, shell=True, stdout=PIPE, text=True)
+        scores = [int(x) for x in grep_result.stdout.splitlines() if x]
+        max_score = max(scores) if scores else None
+        
+        df_ref.append({
+            'k': int(k),
+            'score': max_score,
+            'sample': fasta.stem
+        })
+
+# Save reference results
+if df_ref:
+    pd.DataFrame(df_ref).to_csv('alignment_results/reference.csv', index=False)
+    print("Saved reference alignment results")
+else:
+    print("No reference alignment results to save")

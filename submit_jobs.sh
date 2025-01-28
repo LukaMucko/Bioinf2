@@ -1,6 +1,6 @@
 #!/bin/bash
 
-k_values=(1100, 1200, 1300, 1400, 1600, 1700, 1800, 1900)
+k_values=(165 170 175 185 190 195)
 
 # Submit jobs for each k value
 for k in "${k_values[@]}"

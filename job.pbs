@@ -1,11 +1,11 @@
 #!/bin/bash
  
 #PBS -P testni_primjer
-#PBS -q login-cpu
-#PBS -l select=1:ncpus=1:mem=150GB
+#PBS -q gpu
+#PBS -l select=1:ncpus=10:mem=200GB:ngpus=1
 #PBS -o /lustre/home/lmucko/bioinf2/JOBS/
 #PBS -e /lustre/home/lmucko/bioinf2/JOBS/
 
 cd bioinf2
 
-uv run python MarkovChain.py -k $k -n 30 -b 30
+uv run python MarkovChain.py -k $k -n 5 -b 5 -r ecoli/ecoli_ONT_concat.fasta -o ONT/concat

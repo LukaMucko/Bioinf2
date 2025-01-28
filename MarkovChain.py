@@ -44,7 +44,7 @@ def create_transition_matrix(kmers: list, n_kmers: int):
         - final_state: Index
     """
     # Create and fill transition matrix
-    transition_matrix = np.zeros((n_kmers, 4))
+    transition_matrix = np.zeros((n_kmers, 5)).astype(np.float16)
     
     # Calculate transitions
     for i in range(len(kmers)-1):
@@ -175,8 +175,8 @@ if __name__ == "__main__":
     # Create mappings
     kmer_dict = {kmer: idx for idx, kmer in enumerate(unique_kmers)}
     reverse_kmer_dict = {idx: kmer for kmer, idx in kmer_dict.items()}
-    base_encoder = {"A": 0, "C": 1, "G": 2, "T": 3}
-    reverse_base_decoder = {0: "A", 1: "C", 2: "G", 3: "T"}
+    base_encoder = {"A": 0, "C": 1, "G": 2, "T": 3, "N": 4}
+    reverse_base_decoder = {0: "A", 1: "C", 2: "G", 3: "T", 4: "N"}
 
     transition_matrix, starting_state, final_state = create_transition_matrix(kmers, n_kmers)
     print(f"Transition matrix shape: {transition_matrix.shape}")
