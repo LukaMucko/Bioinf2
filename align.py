@@ -7,7 +7,7 @@ Path('alignment_results').mkdir(exist_ok=True)
 
 for tech in ['ONT', 'PB']:
     df = []
-    for concat in [True, False]:
+    for concat in [True]:
         ref = f"ecoli/ecoli_{tech}{'_concat' if concat else ''}.fasta"
         samples_dir = Path(f"samples/{tech}/{'concat' if concat else 'non_concat'}")
         
@@ -15,10 +15,10 @@ for tech in ['ONT', 'PB']:
             continue  # Skip missing paths
 
         # Set presets
-        if tech == 'ILL':
-            preset = '-ax sr' if not concat else '-ax asm5'
+        if tech == 'ONT':
+            preset = '-ax map-ont'
         else:  # ONT or PB
-            preset = f'-ax map-{tech.lower()}' if not concat else '-ax asm5'
+            preset = f'-ax map-pb'
 
         # Process samples with silent output
         for fasta in samples_dir.glob('*/*.fasta'):

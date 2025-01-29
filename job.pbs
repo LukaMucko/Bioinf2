@@ -8,4 +8,4 @@
 
 cd bioinf2
 
-uv run python MarkovChain.py -k $k -n 5 -b 5 -r ecoli/ecoli_ONT_concat.fasta -o ONT/concat
+uv run python MarkovChain.py -k $k -n 5 -b 5 -r ecoli/ecoli_ILL_concat.fasta -o ILL/concat
